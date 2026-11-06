@@ -70,7 +70,12 @@ export default function AuthCallbackPage() {
 
             } catch (error) {
                 console.error("Authentication callback error:", error);
-                router.replace("/login");
+
+                alert(
+                    error instanceof Error
+                        ? error.message
+                        : "Unknown authentication error"
+                );
             }
         };
 
