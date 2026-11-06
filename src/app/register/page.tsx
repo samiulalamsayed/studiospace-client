@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
 import {
     Aperture,
     ArrowRight,
@@ -10,15 +11,20 @@ import {
     EyeOff,
     LoaderCircle,
 } from "lucide-react";
-import { toast } from "react-toastify";
 
+import { toast } from "react-toastify";
 import { authClient } from "@/lib/auth-client";
 
-const API_URL =
-    "https://studiospace-server-sayed-cbee.vercel.app";
+const API_URL = "https://studiospace-server-sayed-cbee.vercel.app";
 
 export default function RegisterPage() {
     const router = useRouter();
+
+    // Better Auth Session
+    const { data: session, isPending } = authClient.useSession();
+
+    // Prevent route guard from interrupting registration
+    const isCompletingRegistration = useRef(false);
 
     const [formData, setFormData] = useState({
         name: "",
@@ -30,13 +36,32 @@ export default function RegisterPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
+    const [loginHref, setLoginHref] = useState("/login");
 
-    // Get the previous page URL
+    // Preserve callbackURL in Login Link
+    useEffect(() => {
+        setLoginHref(`/login${window.location.search}`);
+    }, []);
+
+    // Client-Side Route Guard
+    useEffect(() => {
+        if (
+            !isPending &&
+            session &&
+            !isCompletingRegistration.current
+        ) {
+            router.replace("/dashboard");
+        }
+    }, [session, isPending, router]);
+
+    // Get and validate callback URL
     const getCallbackURL = () => {
         const params = new URLSearchParams(window.location.search);
         const requestedURL = params.get("callbackURL");
 
-        if (!requestedURL) return "/";
+        if (!requestedURL) {
+            return "/dashboard";
+        }
 
         try {
             const destination = new URL(
@@ -45,7 +70,7 @@ export default function RegisterPage() {
             );
 
             if (destination.origin !== window.location.origin) {
-                return "/";
+                return "/dashboard";
             }
 
             return (
@@ -54,7 +79,7 @@ export default function RegisterPage() {
                 destination.hash
             );
         } catch {
-            return "/";
+            return "/dashboard";
         }
     };
 
@@ -85,18 +110,24 @@ export default function RegisterPage() {
     };
 
     // Email & Password Registration
-    const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+    const handleRegister = async (
+        e: React.FormEvent<HTMLFormElement>
+    ) => {
         e.preventDefault();
 
         const { name, email, image, password } = formData;
 
         if (!/[A-Z]/.test(password)) {
-            toast.error("Password must contain at least one uppercase letter.");
+            toast.error(
+                "Password must contain at least one uppercase letter."
+            );
             return;
         }
 
         if (!/[a-z]/.test(password)) {
-            toast.error("Password must contain at least one lowercase letter.");
+            toast.error(
+                "Password must contain at least one lowercase letter."
+            );
             return;
         }
 
@@ -107,6 +138,7 @@ export default function RegisterPage() {
 
         try {
             setLoading(true);
+            isCompletingRegistration.current = true;
 
             // Create account
             const { error } = await authClient.signUp.email({
@@ -117,8 +149,9 @@ export default function RegisterPage() {
             });
 
             if (error) {
-                toast.error(error.message || "Registration failed.");
-                return;
+                throw new Error(
+                    error.message || "Registration failed."
+                );
             }
 
             // Verify Better Auth session
@@ -131,53 +164,11 @@ export default function RegisterPage() {
                 );
             }
 
-            // Generate JWT
-            const { data: tokenData, error: tokenError } =
-                await authClient.token();
+            // Generate JWT and set Backend Cookie
+            await setBackendCookie();
 
-            if (tokenError || !tokenData?.token) {
-                throw new Error("Unable to generate authentication token.");
-            }
-
-            // Set Backend HTTPOnly Cookie
-            const response = await fetch(
-                "https://studiospace-server-sayed-cbee.vercel.app/api/auth/set-cookie",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    credentials: "include",
-                    body: JSON.stringify({
-                        token: tokenData.token,
-                    }),
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error("Unable to establish backend authentication.");
-            }
-
-            // Get previous destination
-            const requestedURL = new URLSearchParams(
-                window.location.search
-            ).get("callbackURL");
-
-            let callbackURL = "/";
-
-            if (requestedURL) {
-                const destination = new URL(
-                    requestedURL,
-                    window.location.origin
-                );
-
-                if (destination.origin === window.location.origin) {
-                    callbackURL =
-                        destination.pathname +
-                        destination.search +
-                        destination.hash;
-                }
-            }
+            // Redirect to previous page or Dashboard
+            const callbackURL = getCallbackURL();
 
             toast.success("Account created successfully!");
 
@@ -192,6 +183,9 @@ export default function RegisterPage() {
                     ? error.message
                     : "Something went wrong."
             );
+
+            isCompletingRegistration.current = false;
+
         } finally {
             setLoading(false);
         }
@@ -212,29 +206,44 @@ export default function RegisterPage() {
             });
 
             if (error) {
-                toast.error(
+                throw new Error(
                     error.message || "Google Sign Up failed."
                 );
-                setGoogleLoading(false);
             }
 
         } catch (error) {
             console.error("Google Sign Up Error:", error);
 
             toast.error(
-                "Something went wrong. Please try again."
+                error instanceof Error
+                    ? error.message
+                    : "Something went wrong. Please try again."
             );
 
             setGoogleLoading(false);
         }
     };
 
+    // Prevent Register Form from rendering while checking session
+    if (isPending || session) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-[#fafaf7] dark:bg-[#111111]">
+                <LoaderCircle
+                    size={35}
+                    className="animate-spin text-[#8cae3c]"
+                />
+            </div>
+        );
+    }
+
     return (
         <div className="flex min-h-screen items-center justify-center bg-[#fafaf7] px-5 py-16 dark:bg-[#111111]">
-            <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-[#1c1c1c] lg:grid-cols-2">
+
+            <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-[#1c1c1c]">
 
                 {/* Left Side */}
                 <div className="relative hidden min-h-[650px] flex-col justify-between overflow-hidden bg-[#171717] p-12 text-white lg:flex">
+
                     <div>
                         <Link
                             href="/"
@@ -279,10 +288,12 @@ export default function RegisterPage() {
                     <div className="absolute -bottom-32 -right-24 h-80 w-80 rounded-full border border-[#c7f36b]/20" />
 
                     <div className="absolute -bottom-20 -right-12 h-60 w-60 rounded-full border border-[#c7f36b]/20" />
+
                 </div>
 
                 {/* Right Side - Form */}
                 <div className="flex items-center justify-center p-7 sm:p-12">
+
                     <div className="w-full max-w-md">
 
                         {/* Mobile Logo */}
@@ -302,6 +313,7 @@ export default function RegisterPage() {
                             </span>
                         </Link>
 
+                        {/* Heading */}
                         <div className="mb-8">
                             <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#8cae3c]">
                                 Get Started
@@ -317,6 +329,7 @@ export default function RegisterPage() {
                             </p>
                         </div>
 
+                        {/* Registration Form */}
                         <form
                             onSubmit={handleRegister}
                             className="space-y-5"
@@ -514,15 +527,15 @@ export default function RegisterPage() {
                                     ? "Connecting to Google..."
                                     : "Continue with Google"}
                             </button>
+
                         </form>
 
                         {/* Login Link */}
                         <p className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
                             Already have an account?{" "}
+
                             <Link
-                                href={`/login?callbackURL=${encodeURIComponent(
-                                    getCallbackURL()
-                                )}`}
+                                href={loginHref}
                                 className="font-bold text-[#8cae3c] transition hover:text-[#a3cf45]"
                             >
                                 Log In
@@ -531,6 +544,7 @@ export default function RegisterPage() {
 
                     </div>
                 </div>
+
             </div>
         </div>
     );
