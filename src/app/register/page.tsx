@@ -14,6 +14,9 @@ import { toast } from "react-toastify";
 
 import { authClient } from "@/lib/auth-client";
 
+const API_URL =
+    "https://studiospace-server-sayed-cbee.vercel.app";
+
 export default function RegisterPage() {
     const router = useRouter();
 
@@ -28,30 +31,92 @@ export default function RegisterPage() {
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
 
+    // Get the previous page URL
+    const getCallbackURL = () => {
+        const params = new URLSearchParams(window.location.search);
+        const requestedURL = params.get("callbackURL");
+
+        if (!requestedURL) return "/";
+
+        try {
+            const destination = new URL(
+                requestedURL,
+                window.location.origin
+            );
+
+            if (destination.origin !== window.location.origin) {
+                return "/";
+            }
+
+            return (
+                destination.pathname +
+                destination.search +
+                destination.hash
+            );
+        } catch {
+            return "/";
+        }
+    };
+
+    // Set authentication cookie in Express backend
+    const setBackendCookie = async () => {
+        const { data, error } = await authClient.token();
+
+        if (error || !data?.token) {
+            throw new Error("Unable to generate authentication token.");
+        }
+
+        const response = await fetch(`${API_URL}/api/auth/set-cookie`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify({
+                token: data.token,
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(
+                "Unable to establish backend authentication."
+            );
+        }
+    };
+
     // Email & Password Registration
-    const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+    const handleRegister = async (
+        e: React.FormEvent<HTMLFormElement>
+    ) => {
         e.preventDefault();
 
         const { name, email, image, password } = formData;
 
         if (!/[A-Z]/.test(password)) {
-            toast.error("Password must contain at least one uppercase letter.");
+            toast.error(
+                "Password must contain at least one uppercase letter."
+            );
             return;
         }
 
         if (!/[a-z]/.test(password)) {
-            toast.error("Password must contain at least one lowercase letter.");
+            toast.error(
+                "Password must contain at least one lowercase letter."
+            );
             return;
         }
 
         if (password.length < 6) {
-            toast.error("Password must be at least 6 characters long.");
+            toast.error(
+                "Password must be at least 6 characters long."
+            );
             return;
         }
 
         try {
             setLoading(true);
 
+            // Create account with Better Auth
             const { error } = await authClient.signUp.email({
                 name,
                 email,
@@ -60,16 +125,29 @@ export default function RegisterPage() {
             });
 
             if (error) {
-                toast.error(error.message || "Registration failed.");
+                toast.error(
+                    error.message || "Registration failed."
+                );
                 return;
             }
 
-            toast.success("Registration successful! Please log in.");
+            // Create backend authentication cookie
+            await setBackendCookie();
 
-            router.push("/login");
+            toast.success("Account created successfully!");
+
+            // Redirect to the previous page
+            router.replace(getCallbackURL());
+            router.refresh();
+
         } catch (error) {
             console.error("Registration error:", error);
-            toast.error("Something went wrong. Please try again.");
+
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Something went wrong. Please try again."
+            );
         } finally {
             setLoading(false);
         }
@@ -80,18 +158,29 @@ export default function RegisterPage() {
         try {
             setGoogleLoading(true);
 
+            const callbackURL = getCallbackURL();
+
             const { error } = await authClient.signIn.social({
                 provider: "google",
-                callbackURL: "/",
+                callbackURL: `/auth/callback?next=${encodeURIComponent(
+                    callbackURL
+                )}`,
             });
 
             if (error) {
-                toast.error(error.message || "Google Sign Up failed.");
+                toast.error(
+                    error.message || "Google Sign Up failed."
+                );
+                setGoogleLoading(false);
             }
+
         } catch (error) {
             console.error("Google Sign Up Error:", error);
-            toast.error("Something went wrong. Please try again.");
-        } finally {
+
+            toast.error(
+                "Something went wrong. Please try again."
+            );
+
             setGoogleLoading(false);
         }
     };
@@ -103,13 +192,19 @@ export default function RegisterPage() {
                 {/* Left Side */}
                 <div className="relative hidden min-h-[650px] flex-col justify-between overflow-hidden bg-[#171717] p-12 text-white lg:flex">
                     <div>
-                        <Link href="/" className="inline-flex items-center gap-3">
+                        <Link
+                            href="/"
+                            className="inline-flex items-center gap-3"
+                        >
                             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#c7f36b] text-[#171717]">
                                 <Aperture size={25} />
                             </span>
 
                             <span className="text-2xl font-bold">
-                                Studio<span className="text-[#c7f36b]">Space.</span>
+                                Studio
+                                <span className="text-[#c7f36b]">
+                                    Space.
+                                </span>
                             </span>
                         </Link>
                     </div>
@@ -126,16 +221,19 @@ export default function RegisterPage() {
                         </h1>
 
                         <p className="mt-6 max-w-sm text-sm leading-7 text-white/55">
-                            Join a community of creators and discover inspiring spaces
-                            to bring your creative ideas to life.
+                            Join a community of creators and discover
+                            inspiring spaces to bring your creative
+                            ideas to life.
                         </p>
                     </div>
 
                     <p className="text-xs text-white/35">
-                        © {new Date().getFullYear()} StudioSpace. Made for Creators.
+                        © {new Date().getFullYear()} StudioSpace.
+                        Made for Creators.
                     </p>
 
                     <div className="absolute -bottom-32 -right-24 h-80 w-80 rounded-full border border-[#c7f36b]/20" />
+
                     <div className="absolute -bottom-20 -right-12 h-60 w-60 rounded-full border border-[#c7f36b]/20" />
                 </div>
 
@@ -153,7 +251,10 @@ export default function RegisterPage() {
                             </span>
 
                             <span className="text-xl font-bold text-gray-900 dark:text-white">
-                                Studio<span className="text-[#8cae3c]">Space.</span>
+                                Studio
+                                <span className="text-[#8cae3c]">
+                                    Space.
+                                </span>
                             </span>
                         </Link>
 
@@ -167,11 +268,15 @@ export default function RegisterPage() {
                             </h2>
 
                             <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                                Join StudioSpace and start your creative journey.
+                                Join StudioSpace and start your creative
+                                journey.
                             </p>
                         </div>
 
-                        <form onSubmit={handleRegister} className="space-y-5">
+                        <form
+                            onSubmit={handleRegister}
+                            className="space-y-5"
+                        >
 
                             {/* Name */}
                             <div>
@@ -248,7 +353,11 @@ export default function RegisterPage() {
 
                                 <div className="relative">
                                     <input
-                                        type={showPassword ? "text" : "password"}
+                                        type={
+                                            showPassword
+                                                ? "text"
+                                                : "password"
+                                        }
                                         required
                                         autoComplete="new-password"
                                         value={formData.password}
@@ -264,7 +373,9 @@ export default function RegisterPage() {
 
                                     <button
                                         type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
+                                        onClick={() =>
+                                            setShowPassword(!showPassword)
+                                        }
                                         className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
                                         aria-label="Toggle password visibility"
                                     >
@@ -277,7 +388,8 @@ export default function RegisterPage() {
                                 </div>
 
                                 <p className="mt-2 text-xs text-gray-400">
-                                    At least 6 characters, including uppercase and lowercase letters.
+                                    At least 6 characters, including
+                                    uppercase and lowercase letters.
                                 </p>
                             </div>
 
@@ -289,7 +401,10 @@ export default function RegisterPage() {
                             >
                                 {loading ? (
                                     <>
-                                        <LoaderCircle size={19} className="animate-spin" />
+                                        <LoaderCircle
+                                            size={19}
+                                            className="animate-spin"
+                                        />
                                         Creating Account...
                                     </>
                                 ) : (
@@ -319,7 +434,10 @@ export default function RegisterPage() {
                                 className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-5 py-4 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-[#202020] dark:text-white dark:hover:bg-[#292929]"
                             >
                                 {googleLoading ? (
-                                    <LoaderCircle size={19} className="animate-spin" />
+                                    <LoaderCircle
+                                        size={19}
+                                        className="animate-spin"
+                                    />
                                 ) : (
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
@@ -358,7 +476,9 @@ export default function RegisterPage() {
                         <p className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
                             Already have an account?{" "}
                             <Link
-                                href="/login"
+                                href={`/login?callbackURL=${encodeURIComponent(
+                                    getCallbackURL()
+                                )}`}
                                 className="font-bold text-[#8cae3c] transition hover:text-[#a3cf45]"
                             >
                                 Log In

@@ -76,7 +76,7 @@ export default function LoginPage() {
                     ? requestedURL
                     : "/";
 
-            router.push(callbackURL);
+            router.replace(callbackURL);
             router.refresh();
 
         } catch (error) {
@@ -311,7 +311,7 @@ export default function LoginPage() {
                 <p className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
                     Don&apos;t have an account?{" "}
                     <Link
-                        href="/register"
+                        href={`/register${window.location.search}`}
                         className="font-bold text-[#8cae3c] transition hover:text-[#a3cf45]"
                     >
                         Create Account
