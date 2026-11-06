@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StudioSpace — Creative Workspace & Studio Booking Platform
 
-## Getting Started
+**Live Website:** https://studiospace-client-smoky.vercel.app
 
-First, run the development server:
+StudioSpace is a peer-to-peer platform where creators can discover, explore, and book creative workspaces such as photography studios, podcast rooms, sound stages, music suites, and art workshops.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Explore Studios:** Browse available creative workspaces with search and category filtering.
+- **Studio Details:** View studio information, images, pricing, amenities, and host details.
+- **User Authentication:** Secure registration and login with email/password and Google authentication.
+- **Studio Management:** Hosts can add, update, and delete their studio listings.
+- **Workspace Booking:** Users can book studios and manage their bookings.
+- **Booking Management:** View booking details, check booking statuses, and cancel pending bookings.
+- **Responsive Design:** Optimized for desktop, tablet, and mobile devices.
+- **Dark & Light Mode:** Switch between dark and light themes.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Frontend:** Next.js, React, TypeScript
+- **Styling:** Tailwind CSS
+- **Authentication:** Better Auth, JWT
+- **Backend:** Express.js
+- **Database:** MongoDB
+- **Notifications:** React Toastify
+- **Deployment:** Vercel
 
-## Learn More
+## Installation & Setup
 
-To learn more about Next.js, take a look at the following resources:
+1. Clone the repository:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   ```bash
+   git clone https://github.com/samiulalamsayed/studiospace-client.git
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. Navigate to the project directory:
 
-## Deploy on Vercel
+   ```bash
+   cd studiospace-client
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. Install dependencies:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   ```bash
+   npm install
+   ```
+
+4. Create a `.env.local` file and configure the required environment variables:
+
+   ```env
+   BETTER_AUTH_URL=
+   NEXT_PUBLIC_BETTER_AUTH_URL=
+   BETTER_AUTH_SECRET=
+   GOOGLE_CLIENT_ID=
+   GOOGLE_CLIENT_SECRET=
+   NEXT_PUBLIC_API_URL=
+   ```
+
+5. Start the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+6. Open http://localhost:3000 in your browser.
+
+## Examiner Test Credentials
+
+Use the following credentials to test the application:
+
+- **Email:** rakib2002@gmail.com
+- **Password:** 22dS123d
+
+## Author
+
+Developed as part of the Programming Hero Web Development Course assignment.
+
+**Project Name:** StudioSpace
