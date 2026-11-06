@@ -239,7 +239,7 @@ export default function RegisterPage() {
     return (
         <div className="flex min-h-screen items-center justify-center bg-[#fafaf7] px-5 py-16 dark:bg-[#111111]">
 
-            <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-[#1c1c1c]">
+            <div className="grid w-full max-w-5xl grid-cols-1 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-[#1c1c1c] lg:grid-cols-2">
 
                 {/* Left Side */}
                 <div className="relative hidden min-h-[650px] flex-col justify-between overflow-hidden bg-[#171717] p-12 text-white lg:flex">
