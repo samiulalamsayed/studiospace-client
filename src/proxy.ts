@@ -6,16 +6,32 @@ export function proxy(request: NextRequest) {
         request.cookies.get("__Secure-better-auth.session_token");
 
     const isAuthenticated = !!sessionCookie;
+    const { pathname, searchParams } = request.nextUrl;
 
-    // User is authenticated
+    // Authenticated users cannot access Login or Register
+    if (
+        isAuthenticated &&
+        (pathname === "/login" || pathname === "/register")
+    ) {
+        return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    // Allow unauthenticated users to access Login and Register
+    if (
+        !isAuthenticated &&
+        (pathname === "/login" || pathname === "/register")
+    ) {
+        return NextResponse.next();
+    }
+
+    // Allow authenticated users to access protected routes
     if (isAuthenticated) {
         return NextResponse.next();
     }
 
-    // User is not authenticated
+    // Redirect unauthenticated users to Login
     const loginUrl = new URL("/login", request.url);
 
-    // Preserve pathname and query parameters
     const callbackURL =
         request.nextUrl.pathname + request.nextUrl.search;
 
@@ -31,5 +47,7 @@ export const config = {
         "/my-listings/:path*",
         "/my-bookings/:path*",
         "/studios/edit/:path*",
+        "/login",
+        "/register",
     ],
 };
