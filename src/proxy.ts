@@ -7,19 +7,21 @@ export function proxy(request: NextRequest) {
 
     const isAuthenticated = !!sessionCookie;
 
-    const loginUrl = new URL("/login", request.url);
-
-    // Preserve the requested URL
-    loginUrl.searchParams.set(
-        "callbackURL",
-        request.nextUrl.pathname
-    );
-
-    if (!isAuthenticated) {
-        return NextResponse.redirect(loginUrl);
+    // User is authenticated
+    if (isAuthenticated) {
+        return NextResponse.next();
     }
 
-    return NextResponse.next();
+    // User is not authenticated
+    const loginUrl = new URL("/login", request.url);
+
+    // Preserve pathname and query parameters
+    const callbackURL =
+        request.nextUrl.pathname + request.nextUrl.search;
+
+    loginUrl.searchParams.set("callbackURL", callbackURL);
+
+    return NextResponse.redirect(loginUrl);
 }
 
 export const config = {

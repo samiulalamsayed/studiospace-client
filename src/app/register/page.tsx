@@ -85,38 +85,30 @@ export default function RegisterPage() {
     };
 
     // Email & Password Registration
-    const handleRegister = async (
-        e: React.FormEvent<HTMLFormElement>
-    ) => {
+    const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
         const { name, email, image, password } = formData;
 
         if (!/[A-Z]/.test(password)) {
-            toast.error(
-                "Password must contain at least one uppercase letter."
-            );
+            toast.error("Password must contain at least one uppercase letter.");
             return;
         }
 
         if (!/[a-z]/.test(password)) {
-            toast.error(
-                "Password must contain at least one lowercase letter."
-            );
+            toast.error("Password must contain at least one lowercase letter.");
             return;
         }
 
         if (password.length < 6) {
-            toast.error(
-                "Password must be at least 6 characters long."
-            );
+            toast.error("Password must be at least 6 characters long.");
             return;
         }
 
         try {
             setLoading(true);
 
-            // Create account with Better Auth
+            // Create account
             const { error } = await authClient.signUp.email({
                 name,
                 email,
@@ -125,19 +117,71 @@ export default function RegisterPage() {
             });
 
             if (error) {
-                toast.error(
-                    error.message || "Registration failed."
-                );
+                toast.error(error.message || "Registration failed.");
                 return;
             }
 
-            // Create backend authentication cookie
-            await setBackendCookie();
+            // Verify Better Auth session
+            const { data: sessionData, error: sessionError } =
+                await authClient.getSession();
+
+            if (sessionError || !sessionData?.session) {
+                throw new Error(
+                    "Account created, but login session was not established."
+                );
+            }
+
+            // Generate JWT
+            const { data: tokenData, error: tokenError } =
+                await authClient.token();
+
+            if (tokenError || !tokenData?.token) {
+                throw new Error("Unable to generate authentication token.");
+            }
+
+            // Set Backend HTTPOnly Cookie
+            const response = await fetch(
+                "https://studiospace-server-sayed-cbee.vercel.app/api/auth/set-cookie",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    credentials: "include",
+                    body: JSON.stringify({
+                        token: tokenData.token,
+                    }),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error("Unable to establish backend authentication.");
+            }
+
+            // Get previous destination
+            const requestedURL = new URLSearchParams(
+                window.location.search
+            ).get("callbackURL");
+
+            let callbackURL = "/";
+
+            if (requestedURL) {
+                const destination = new URL(
+                    requestedURL,
+                    window.location.origin
+                );
+
+                if (destination.origin === window.location.origin) {
+                    callbackURL =
+                        destination.pathname +
+                        destination.search +
+                        destination.hash;
+                }
+            }
 
             toast.success("Account created successfully!");
 
-            // Redirect to the previous page
-            router.replace(getCallbackURL());
+            router.replace(callbackURL);
             router.refresh();
 
         } catch (error) {
@@ -146,7 +190,7 @@ export default function RegisterPage() {
             toast.error(
                 error instanceof Error
                     ? error.message
-                    : "Something went wrong. Please try again."
+                    : "Something went wrong."
             );
         } finally {
             setLoading(false);

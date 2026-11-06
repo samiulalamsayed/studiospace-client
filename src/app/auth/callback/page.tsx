@@ -3,6 +3,10 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { toast } from "react-toastify";
+
+const API_URL =
+    "https://studiospace-server-sayed-cbee.vercel.app";
 
 export default function AuthCallbackPage() {
     const router = useRouter();
@@ -14,10 +18,22 @@ export default function AuthCallbackPage() {
 
         const setupAuthentication = async () => {
             try {
+                // Wait until Better Auth session is available
+                const { data: sessionData, error: sessionError } =
+                    await authClient.getSession();
+
+                if (sessionError || !sessionData?.session) {
+                    throw new Error(
+                        "Unable to establish your login session."
+                    );
+                }
+
                 // Get requested destination
-                const requestedURL = new URLSearchParams(
+                const params = new URLSearchParams(
                     window.location.search
-                ).get("next");
+                );
+
+                const requestedURL = params.get("next");
 
                 // Validate destination
                 let callbackURL = "/";
@@ -36,16 +52,18 @@ export default function AuthCallbackPage() {
                     }
                 }
 
-                // Get JWT from Better Auth
+                // Generate JWT from Better Auth
                 const { data, error } = await authClient.token();
 
                 if (error || !data?.token) {
-                    throw new Error("Unable to generate JWT.");
+                    throw new Error(
+                        "Unable to generate authentication token."
+                    );
                 }
 
-                // Set HTTPOnly Cookie in Express
+                // Set HTTPOnly Cookie in Express Backend
                 const response = await fetch(
-                    "https://studiospace-server-sayed-cbee.vercel.app/api/auth/set-cookie",
+                    `${API_URL}/api/auth/set-cookie`,
                     {
                         method: "POST",
                         headers: {
@@ -59,23 +77,33 @@ export default function AuthCallbackPage() {
                 );
 
                 if (!response.ok) {
+                    const result = await response.json().catch(() => null);
+
                     throw new Error(
-                        "Unable to set authentication cookie."
+                        result?.message ||
+                        "Unable to establish backend authentication."
                     );
                 }
 
-                // Redirect to requested page
+                toast.success("Login successful!");
+
+                // Redirect to requested destination
                 router.replace(callbackURL);
                 router.refresh();
 
             } catch (error) {
-                console.error("Authentication callback error:", error);
+                console.error(
+                    "Authentication callback error:",
+                    error
+                );
 
-                alert(
+                toast.error(
                     error instanceof Error
                         ? error.message
-                        : "Unknown authentication error"
+                        : "Authentication failed."
                 );
+
+                router.replace("/login");
             }
         };
 
@@ -83,10 +111,14 @@ export default function AuthCallbackPage() {
     }, [router]);
 
     return (
-        <div className="flex min-h-screen items-center justify-center">
-            <p className="text-sm text-gray-500">
-                Completing your sign in...
-            </p>
+        <div className="flex min-h-screen items-center justify-center bg-[#fafaf7] dark:bg-[#111111]">
+            <div className="text-center">
+                <div className="mx-auto mb-4 h-9 w-9 animate-spin rounded-full border-4 border-[#c7f36b] border-t-transparent" />
+
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Completing your sign in...
+                </p>
+            </div>
         </div>
     );
 }
